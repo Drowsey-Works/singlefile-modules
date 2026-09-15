@@ -4,6 +4,11 @@
  * Drop-in module loader with search, toggles, conflict
  * detection, and localStorage persistence.
  *
+ * Theme:    GitHub dark mode (Primer palette)
+ * Isolation: All rules are !important and scoped to .ugs-ml-*.
+ *            Each loader element resets itself via `all: revert`
+ *            so host-page CSS can't bleed in.
+ *
  * Usage:
  *   <script src="https://cdn.jsdelivr.net/gh/USER/REPO@main/loader.js"></script>
  *
@@ -29,331 +34,491 @@
     if (window.__UGS_ML_LOADED__) return;
     window.__UGS_ML_LOADED__ = true;
 
+    // ---------- GITHUB PRIMER DARK PALETTE ----------
+    const GH = {
+        canvasDefault: '#0d1117',
+        canvasSubtle: '#161b22',
+        canvasInset: '#010409',
+        borderDefault: '#30363d',
+        borderMuted: '#21262d',
+        fgDefault: '#c9d1d9',
+        fgMuted: '#8b949e',
+        fgSubtle: '#6e7681',
+        accent: '#58a6ff',
+        accentEmphasis: '#1f6feb',
+        accentHover: '#79c0ff',
+        success: '#3fb950',
+        attention: '#d29922',
+        danger: '#f85149',
+        monoFont: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
+        uiFont: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif'
+    };
+
     // ---------- INJECT STYLES ----------
+    // Every rule is !important so host page styles can't override.
+    // Fonts, box-sizing, and resets are applied per-element so nothing
+    // bleeds in from the host page.
     const style = document.createElement('style');
     style.id = 'ugs-module-loader-styles';
     style.textContent = `
-        .ugs-ml-wrap {
-            position: fixed;
-            top: 14px;
-            left: 14px;
-            z-index: 2147483000;
-            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-            font-size: 13px;
-            color: #e3e5e8;
+        /* ============ Reset + isolation ============ */
+        .ugs-ml-wrap,
+        .ugs-ml-wrap *,
+        .ugs-ml-conflict-overlay,
+        .ugs-ml-conflict-overlay * {
+            all: unset;
+            box-sizing: border-box !important;
+            font-family: ${GH.uiFont} !important;
+            -webkit-font-smoothing: antialiased !important;
+            -moz-osx-font-smoothing: grayscale !important;
+        }
+        .ugs-ml-wrap *,
+        .ugs-ml-conflict-overlay * {
+            display: revert;
         }
 
+        /* ============ Wrapper ============ */
+        .ugs-ml-wrap {
+            position: fixed !important;
+            top: 14px !important;
+            left: 14px !important;
+            z-index: 2147483000 !important;
+            font-size: 12px !important;
+            line-height: 1.5 !important;
+            color: ${GH.fgDefault} !important;
+            display: block !important;
+        }
+
+        /* ============ Trigger button ============ */
         .ugs-ml-btn {
-            width: 42px;
-            height: 42px;
-            border-radius: 8px;
-            background: #16181d;
-            border: 1px solid #2a2e37;
-            color: #cfd2d9;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: background 0.15s, border-color 0.15s, transform 0.15s;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.4);
-            padding: 0;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            width: 44px !important;
+            height: 44px !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            border-radius: 6px !important;
+            background: ${GH.canvasSubtle} !important;
+            border: 1px solid ${GH.borderDefault} !important;
+            color: ${GH.fgDefault} !important;
+            cursor: pointer !important;
+            transition: background 120ms, border-color 120ms, color 120ms !important;
+            box-shadow: 0 4px 14px rgba(1, 4, 9, 0.6) !important;
+            outline: none !important;
         }
         .ugs-ml-btn:hover {
-            background: #1f2229;
-            border-color: #3d424d;
-            color: #ffffff;
-            transform: translateY(-1px);
+            background: ${GH.canvasDefault} !important;
+            border-color: ${GH.fgSubtle} !important;
+            color: ${GH.fgDefault} !important;
         }
-        .ugs-ml-btn svg { width: 20px; height: 20px; fill: currentColor; }
+        .ugs-ml-btn:focus-visible {
+            border-color: ${GH.accent} !important;
+            box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.3) !important;
+        }
         .ugs-ml-btn.active {
-            background: #1f2229;
-            border-color: #4b5261;
-            color: #ffffff;
+            background: ${GH.canvasDefault} !important;
+            border-color: ${GH.accent} !important;
+            color: ${GH.accent} !important;
+        }
+        .ugs-ml-btn svg {
+            width: 20px !important;
+            height: 20px !important;
+            fill: currentColor !important;
+            display: block !important;
+            pointer-events: none !important;
         }
 
+        /* ============ Panel ============ */
         .ugs-ml-panel {
-            position: absolute;
-            top: 50px;
-            left: 0;
-            width: 340px;
-            max-height: 480px;
-            background: #0d0e11;
-            border: 1px solid #23262e;
-            border-radius: 10px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.7);
-            display: none;
-            flex-direction: column;
-            overflow: hidden;
-            opacity: 0;
-            transform: translateY(-6px) scale(0.98);
-            transition: opacity 0.18s ease, transform 0.18s ease;
+            position: absolute !important;
+            top: 54px !important;
+            left: 0 !important;
+            width: 360px !important;
+            max-height: 500px !important;
+            background: ${GH.canvasDefault} !important;
+            border: 1px solid ${GH.borderDefault} !important;
+            border-radius: 6px !important;
+            box-shadow: 0 16px 48px rgba(1, 4, 9, 0.8) !important;
+            display: none !important;
+            flex-direction: column !important;
+            overflow: hidden !important;
+            opacity: 0 !important;
+            transform: translateY(-6px) !important;
+            transition: opacity 140ms ease, transform 140ms ease !important;
         }
         .ugs-ml-panel.open {
-            display: flex;
-            opacity: 1;
-            transform: translateY(0) scale(1);
+            display: flex !important;
+            opacity: 1 !important;
+            transform: translateY(0) !important;
         }
 
+        /* ============ Header ============ */
         .ugs-ml-header {
-            padding: 14px 16px 10px;
-            border-bottom: 1px solid #1b1e24;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            padding: 10px 14px !important;
+            border-bottom: 1px solid ${GH.borderMuted} !important;
+            background: ${GH.canvasSubtle} !important;
+            border-top-left-radius: 6px !important;
+            border-top-right-radius: 6px !important;
         }
         .ugs-ml-title {
-            font-size: 13px;
-            font-weight: 500;
-            letter-spacing: 0.4px;
-            color: #ffffff;
+            font-size: 12px !important;
+            font-weight: 600 !important;
+            color: ${GH.fgDefault} !important;
+            letter-spacing: 0 !important;
+            display: inline-block !important;
         }
         .ugs-ml-count {
-            font-size: 11px;
-            color: #5f6672;
-            letter-spacing: 0.3px;
+            font-size: 11px !important;
+            color: ${GH.fgMuted} !important;
+            font-family: ${GH.monoFont} !important;
+            display: inline-block !important;
         }
 
+        /* ============ Search ============ */
         .ugs-ml-search-wrap {
-            padding: 10px 12px;
-            border-bottom: 1px solid #1b1e24;
+            padding: 10px 12px !important;
+            border-bottom: 1px solid ${GH.borderMuted} !important;
+            background: ${GH.canvasDefault} !important;
         }
         .ugs-ml-search {
-            width: 100%;
-            background: #121317;
-            border: 1px solid #262a33;
-            border-radius: 6px;
-            padding: 8px 12px;
-            color: #e3e5e8;
-            font-size: 13px;
-            font-family: inherit;
-            outline: none;
-            transition: border-color 0.15s;
+            display: block !important;
+            width: 100% !important;
+            height: 32px !important;
+            padding: 0 12px !important;
+            margin: 0 !important;
+            background: ${GH.canvasInset} !important;
+            border: 1px solid ${GH.borderDefault} !important;
+            border-radius: 6px !important;
+            color: ${GH.fgDefault} !important;
+            font-size: 12px !important;
+            font-family: ${GH.uiFont} !important;
+            outline: none !important;
+            box-shadow: none !important;
+            transition: border-color 120ms, box-shadow 120ms !important;
         }
-        .ugs-ml-search::placeholder { color: #5f6672; }
-        .ugs-ml-search:focus { border-color: #4b5261; }
+        .ugs-ml-search::placeholder {
+            color: ${GH.fgSubtle} !important;
+            opacity: 1 !important;
+        }
+        .ugs-ml-search:focus {
+            border-color: ${GH.accentEmphasis} !important;
+            box-shadow: 0 0 0 3px rgba(31, 111, 235, 0.3) !important;
+        }
 
+        /* ============ List ============ */
         .ugs-ml-list {
-            overflow-y: auto;
-            padding: 6px;
-            flex: 1;
+            display: block !important;
+            overflow-y: auto !important;
+            padding: 6px !important;
+            flex: 1 1 auto !important;
+            min-height: 0 !important;
+            background: ${GH.canvasDefault} !important;
         }
-        .ugs-ml-list::-webkit-scrollbar { width: 4px; }
-        .ugs-ml-list::-webkit-scrollbar-track { background: transparent; }
-        .ugs-ml-list::-webkit-scrollbar-thumb { background: #2a2d34; border-radius: 2px; }
+        .ugs-ml-list::-webkit-scrollbar { width: 8px !important; }
+        .ugs-ml-list::-webkit-scrollbar-track { background: transparent !important; }
+        .ugs-ml-list::-webkit-scrollbar-thumb {
+            background: ${GH.borderDefault} !important;
+            border-radius: 4px !important;
+        }
+        .ugs-ml-list::-webkit-scrollbar-thumb:hover {
+            background: ${GH.fgSubtle} !important;
+        }
 
+        /* ============ Item ============ */
         .ugs-ml-item {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 10px;
-            padding: 10px 12px;
-            border-radius: 6px;
-            transition: background 0.12s;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            gap: 10px !important;
+            padding: 10px 10px !important;
+            border-radius: 6px !important;
+            transition: background 100ms !important;
+            background: transparent !important;
+            border: none !important;
         }
-        .ugs-ml-item:hover { background: #14171c; }
+        .ugs-ml-item:hover {
+            background: ${GH.canvasSubtle} !important;
+        }
 
-        .ugs-ml-info { min-width: 0; flex: 1; }
+        .ugs-ml-info {
+            min-width: 0 !important;
+            flex: 1 1 auto !important;
+            display: block !important;
+        }
         .ugs-ml-name {
-            font-size: 13px;
-            font-weight: 500;
-            color: #e3e5e8;
-            margin-bottom: 2px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            display: block !important;
+            font-size: 13px !important;
+            font-weight: 600 !important;
+            color: ${GH.fgDefault} !important;
+            margin: 0 0 2px 0 !important;
+            padding: 0 !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            line-height: 1.4 !important;
         }
         .ugs-ml-desc {
-            font-size: 11px;
-            color: #6a7080;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            display: block !important;
+            font-size: 11px !important;
+            color: ${GH.fgMuted} !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            line-height: 1.4 !important;
         }
         .ugs-ml-meta {
-            font-size: 10px;
-            color: #4d5361;
-            margin-top: 2px;
-            letter-spacing: 0.2px;
+            display: block !important;
+            font-size: 10px !important;
+            color: ${GH.fgSubtle} !important;
+            font-family: ${GH.monoFont} !important;
+            margin: 3px 0 0 0 !important;
+            padding: 0 !important;
+            letter-spacing: 0 !important;
+            line-height: 1.4 !important;
         }
 
         .ugs-ml-warn-dot {
-            display: inline-block;
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            background: #d9a94b;
-            margin-left: 6px;
-            vertical-align: middle;
-            box-shadow: 0 0 6px rgba(217,169,75,0.6);
+            display: inline-block !important;
+            width: 6px !important;
+            height: 6px !important;
+            border-radius: 50% !important;
+            background: ${GH.attention} !important;
+            margin-left: 6px !important;
+            vertical-align: middle !important;
+            padding: 0 !important;
         }
 
+        /* ============ Toggle ============ */
         .ugs-ml-toggle {
-            flex-shrink: 0;
-            width: 38px;
-            height: 22px;
-            border-radius: 11px;
-            background: #23262e;
-            border: 1px solid #2a2e37;
-            position: relative;
-            cursor: pointer;
-            transition: background 0.18s, border-color 0.18s;
+            flex-shrink: 0 !important;
+            position: relative !important;
+            width: 40px !important;
+            height: 22px !important;
+            border-radius: 11px !important;
+            background: ${GH.borderDefault} !important;
+            border: none !important;
+            cursor: pointer !important;
+            transition: background 160ms !important;
+            padding: 0 !important;
+            margin: 0 !important;
         }
         .ugs-ml-toggle::after {
-            content: '';
-            position: absolute;
-            top: 2px;
-            left: 2px;
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            background: #6a7080;
-            transition: transform 0.18s ease, background 0.18s;
+            content: '' !important;
+            position: absolute !important;
+            top: 2px !important;
+            left: 2px !important;
+            width: 18px !important;
+            height: 18px !important;
+            border-radius: 50% !important;
+            background: ${GH.canvasDefault} !important;
+            transition: transform 160ms ease, background 160ms !important;
         }
         .ugs-ml-toggle.on {
-            background: #2a4a7a;
-            border-color: #3a6aa0;
+            background: ${GH.accentEmphasis} !important;
         }
         .ugs-ml-toggle.on::after {
-            transform: translateX(16px);
-            background: #79aadb;
+            transform: translateX(18px) !important;
+            background: #ffffff !important;
         }
-        .ugs-ml-toggle.loading { opacity: 0.6; pointer-events: none; }
+        .ugs-ml-toggle.loading {
+            opacity: 0.5 !important;
+            pointer-events: none !important;
+        }
 
+        /* ============ Empty / Footer ============ */
         .ugs-ml-empty {
-            padding: 24px 16px;
-            text-align: center;
-            color: #5f6672;
-            font-size: 12px;
-            font-style: italic;
+            display: block !important;
+            padding: 24px 16px !important;
+            text-align: center !important;
+            color: ${GH.fgMuted} !important;
+            font-size: 12px !important;
+            font-style: normal !important;
+            font-family: ${GH.uiFont} !important;
         }
 
         .ugs-ml-footer {
-            padding: 8px 12px;
-            border-top: 1px solid #1b1e24;
-            font-size: 10px;
-            color: #4d5361;
-            text-align: center;
-            letter-spacing: 0.3px;
+            display: block !important;
+            padding: 8px 12px !important;
+            border-top: 1px solid ${GH.borderMuted} !important;
+            font-size: 10px !important;
+            color: ${GH.fgSubtle} !important;
+            text-align: center !important;
+            font-family: ${GH.monoFont} !important;
+            letter-spacing: 0 !important;
+            background: ${GH.canvasSubtle} !important;
+            border-bottom-left-radius: 6px !important;
+            border-bottom-right-radius: 6px !important;
         }
 
-        /* ---------- CONFLICT MODAL ---------- */
+        /* ============ Conflict modal ============ */
         .ugs-ml-conflict-overlay {
-            position: fixed;
-            inset: 0;
-            z-index: 2147483646;
-            background: rgba(0,0,0,0.6);
-            backdrop-filter: blur(4px);
-            -webkit-backdrop-filter: blur(4px);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            opacity: 0;
-            transition: opacity 0.2s ease;
-            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            position: fixed !important;
+            inset: 0 !important;
+            z-index: 2147483646 !important;
+            background: rgba(1, 4, 9, 0.7) !important;
+            backdrop-filter: blur(3px) !important;
+            -webkit-backdrop-filter: blur(3px) !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            opacity: 0 !important;
+            transition: opacity 160ms ease !important;
         }
-        .ugs-ml-conflict-overlay.open { opacity: 1; }
+        .ugs-ml-conflict-overlay.open {
+            opacity: 1 !important;
+        }
 
         .ugs-ml-conflict-modal {
-            background: #0d0e11;
-            border: 1px solid #2a2e37;
-            border-radius: 10px;
-            width: 420px;
-            max-width: calc(100vw - 32px);
-            padding: 22px 22px 18px;
-            box-shadow: 0 24px 80px rgba(0,0,0,0.8);
-            color: #e3e5e8;
-            transform: translateY(8px);
-            transition: transform 0.2s ease;
+            display: block !important;
+            background: ${GH.canvasDefault} !important;
+            border: 1px solid ${GH.borderDefault} !important;
+            border-radius: 8px !important;
+            width: 440px !important;
+            max-width: calc(100vw - 32px) !important;
+            padding: 20px !important;
+            box-shadow: 0 24px 80px rgba(1, 4, 9, 0.9) !important;
+            color: ${GH.fgDefault} !important;
+            transform: translateY(6px) !important;
+            transition: transform 160ms ease !important;
         }
-        .ugs-ml-conflict-overlay.open .ugs-ml-conflict-modal { transform: translateY(0); }
+        .ugs-ml-conflict-overlay.open .ugs-ml-conflict-modal {
+            transform: translateY(0) !important;
+        }
 
         .ugs-ml-conflict-title {
-            font-size: 15px;
-            font-weight: 500;
-            color: #ffffff;
-            margin-bottom: 12px;
-            letter-spacing: 0.3px;
+            display: block !important;
+            font-size: 14px !important;
+            font-weight: 600 !important;
+            color: ${GH.fgDefault} !important;
+            margin: 0 0 12px 0 !important;
+            padding: 0 !important;
+            letter-spacing: 0 !important;
+            line-height: 1.4 !important;
         }
 
         .ugs-ml-conflict-body {
-            font-size: 13px;
-            line-height: 1.55;
-            color: #b0b6c0;
+            display: block !important;
+            font-size: 13px !important;
+            line-height: 1.55 !important;
+            color: ${GH.fgMuted} !important;
+            font-family: ${GH.uiFont} !important;
         }
-        .ugs-ml-conflict-body p { margin: 0 0 10px; }
-        .ugs-ml-conflict-body strong { color: #ffffff; font-weight: 500; }
+        .ugs-ml-conflict-body p {
+            display: block !important;
+            margin: 0 0 10px 0 !important;
+            padding: 0 !important;
+        }
+        .ugs-ml-conflict-body strong {
+            color: ${GH.fgDefault} !important;
+            font-weight: 600 !important;
+        }
 
         .ugs-ml-conflict-list {
-            list-style: none;
-            padding: 8px 10px;
-            margin: 8px 0 12px;
-            background: #121317;
-            border: 1px solid #23262e;
-            border-radius: 6px;
-            font-size: 12px;
+            display: block !important;
+            list-style: none !important;
+            padding: 8px 10px !important;
+            margin: 8px 0 12px 0 !important;
+            background: ${GH.canvasInset} !important;
+            border: 1px solid ${GH.borderMuted} !important;
+            border-radius: 6px !important;
+            font-size: 12px !important;
         }
         .ugs-ml-conflict-list li {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 4px 0;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            padding: 4px 0 !important;
+            margin: 0 !important;
+            list-style: none !important;
         }
-        .ugs-ml-conflict-name { color: #e3e5e8; }
+        .ugs-ml-conflict-name {
+            color: ${GH.fgDefault} !important;
+            font-family: ${GH.monoFont} !important;
+            font-size: 12px !important;
+        }
         .ugs-ml-conflict-tag {
-            font-size: 10px;
-            color: #79aadb;
-            background: rgba(121,170,219,0.1);
-            border: 1px solid rgba(121,170,219,0.25);
-            padding: 1px 7px;
-            border-radius: 3px;
-            letter-spacing: 0.3px;
-            text-transform: uppercase;
+            display: inline-block !important;
+            font-size: 10px !important;
+            color: ${GH.accent} !important;
+            background: rgba(88, 166, 255, 0.12) !important;
+            border: 1px solid rgba(88, 166, 255, 0.35) !important;
+            padding: 1px 6px !important;
+            border-radius: 999px !important;
+            letter-spacing: 0 !important;
+            text-transform: uppercase !important;
+            font-family: ${GH.monoFont} !important;
+            line-height: 1.4 !important;
         }
 
         .ugs-ml-conflict-hint {
-            font-size: 12px;
-            color: #6a7080;
-            margin: 0;
+            display: block !important;
+            font-size: 12px !important;
+            color: ${GH.fgSubtle} !important;
+            margin: 0 !important;
+            padding: 0 !important;
         }
 
         .ugs-ml-conflict-actions {
-            display: flex;
-            justify-content: flex-end;
-            gap: 8px;
-            margin-top: 16px;
+            display: flex !important;
+            justify-content: flex-end !important;
+            gap: 8px !important;
+            margin-top: 18px !important;
         }
         .ugs-ml-conflict-actions button {
-            padding: 8px 16px;
-            font-size: 12px;
-            font-family: inherit;
-            font-weight: 500;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background 0.15s, border-color 0.15s, color 0.15s;
-            letter-spacing: 0.3px;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            padding: 6px 14px !important;
+            font-size: 12px !important;
+            font-family: ${GH.uiFont} !important;
+            font-weight: 500 !important;
+            border-radius: 6px !important;
+            cursor: pointer !important;
+            transition: background 120ms, border-color 120ms, color 120ms !important;
+            letter-spacing: 0 !important;
+            line-height: 20px !important;
+            outline: none !important;
         }
         .ugs-ml-conflict-cancel {
-            background: transparent;
-            border: 1px solid #2a2e37;
-            color: #b0b6c0;
+            background: ${GH.canvasSubtle} !important;
+            color: ${GH.fgDefault} !important;
+            border: 1px solid ${GH.borderDefault} !important;
         }
         .ugs-ml-conflict-cancel:hover {
-            background: #16181d;
-            border-color: #3d424d;
-            color: #e3e5e8;
+            background: ${GH.borderMuted} !important;
+            border-color: ${GH.fgSubtle} !important;
+        }
+        .ugs-ml-conflict-cancel:focus-visible {
+            border-color: ${GH.accent} !important;
+            box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.3) !important;
         }
         .ugs-ml-conflict-confirm {
-            background: #2a4a7a;
-            border: 1px solid #3a6aa0;
-            color: #ffffff;
+            background: ${GH.accentEmphasis} !important;
+            color: #ffffff !important;
+            border: 1px solid rgba(240, 246, 252, 0.1) !important;
         }
         .ugs-ml-conflict-confirm:hover {
-            background: #345b8f;
-            border-color: #4a7ab5;
+            background: #388bfd !important;
+        }
+        .ugs-ml-conflict-confirm:focus-visible {
+            box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.4) !important;
         }
 
+        /* ============ Responsive ============ */
         @media (max-width: 480px) {
-            .ugs-ml-panel { width: calc(100vw - 28px); max-width: 340px; }
+            .ugs-ml-panel {
+                width: calc(100vw - 28px) !important;
+                max-width: 360px !important;
+            }
+            .ugs-ml-conflict-modal {
+                padding: 16px !important;
+            }
         }
     `;
     document.head.appendChild(style);
@@ -362,19 +527,22 @@
     const wrap = document.createElement('div');
     wrap.className = 'ugs-ml-wrap';
     wrap.innerHTML = `
-        <button class="ugs-ml-btn" id="ugs-ml-btn" title="Modules">
-            <svg viewBox="0 0 24 24"><path d="M12 2l9 5v10l-9 5-9-5V7l9-5zm0 2.18L4.82 8 12 11.82 19.18 8 12 4.18zM4 9.65v6.7l7 3.89v-6.7L4 9.65zm9 10.59l7-3.89v-6.7l-7 3.89v6.7z"/></svg>
+        <button class="ugs-ml-btn" id="ugs-ml-btn" title="Modules" aria-label="Modules">
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M1.75 1.5a.25.25 0 0 0-.25.25v12.5c0 .138.112.25.25.25h6.5a.75.75 0 0 1 0 1.5h-6.5A1.75 1.75 0 0 1 0 14.25V1.75C0 .784.784 0 1.75 0h12.5C15.216 0 16 .784 16 1.75v6.5a.75.75 0 0 1-1.5 0v-6.5a.25.25 0 0 0-.25-.25H1.75Z"></path>
+                <path d="M12.75 8a.75.75 0 0 1 .75.75v2.5h2.5a.75.75 0 0 1 0 1.5h-2.5v2.5a.75.75 0 0 1-1.5 0v-2.5h-2.5a.75.75 0 0 1 0-1.5h2.5v-2.5a.75.75 0 0 1 .75-.75Z"></path>
+            </svg>
         </button>
-        <div class="ugs-ml-panel" id="ugs-ml-panel">
+        <div class="ugs-ml-panel" id="ugs-ml-panel" role="dialog" aria-label="Module list">
             <div class="ugs-ml-header">
                 <span class="ugs-ml-title">Modules</span>
                 <span class="ugs-ml-count" id="ugs-ml-count">—</span>
             </div>
             <div class="ugs-ml-search-wrap">
-                <input class="ugs-ml-search" id="ugs-ml-search" placeholder="Search modules..." autocomplete="off">
+                <input class="ugs-ml-search" id="ugs-ml-search" placeholder="Search modules…" autocomplete="off" spellcheck="false">
             </div>
             <div class="ugs-ml-list" id="ugs-ml-list">
-                <div class="ugs-ml-empty">Loading modules...</div>
+                <div class="ugs-ml-empty">Loading modules…</div>
             </div>
             <div class="ugs-ml-footer" id="ugs-ml-footer">—</div>
         </div>
@@ -455,8 +623,8 @@
             const overlay = document.createElement('div');
             overlay.className = 'ugs-ml-conflict-overlay';
             overlay.innerHTML = `
-                <div class="ugs-ml-conflict-modal">
-                    <div class="ugs-ml-conflict-title">Module Conflict Detected</div>
+                <div class="ugs-ml-conflict-modal" role="alertdialog" aria-labelledby="ugs-ml-conflict-title">
+                    <div class="ugs-ml-conflict-title" id="ugs-ml-conflict-title">Module conflict detected</div>
                     <div class="ugs-ml-conflict-body">
                         <p>
                             <strong>${escapeHtml(candidate.name)}</strong> overlaps with
@@ -467,7 +635,7 @@
                             ${conflicts.map(c => {
                                 const label = c.reason === 'same-subcategory'
                                     ? 'same slot'
-                                    : 'explicitly flagged';
+                                    : 'flagged';
                                 return `<li>
                                     <span class="ugs-ml-conflict-name">${escapeHtml(c.module.name)}</span>
                                     <span class="ugs-ml-conflict-tag">${label}</span>
@@ -481,7 +649,7 @@
                     </div>
                     <div class="ugs-ml-conflict-actions">
                         <button class="ugs-ml-conflict-cancel" data-choice="cancel">Cancel</button>
-                        <button class="ugs-ml-conflict-confirm" data-choice="confirm">Continue Anyway</button>
+                        <button class="ugs-ml-conflict-confirm" data-choice="confirm">Continue anyway</button>
                     </div>
                 </div>
             `;
@@ -569,7 +737,6 @@
                 </div>
             `;
 
-            // Warn dot for would-conflict modules
             const wouldConflict = findConflicts(m, installedIds, allModules).length > 0;
             if (wouldConflict && !installedIds.has(m.id)) {
                 const dot = document.createElement('span');
@@ -581,17 +748,17 @@
             const toggle = document.createElement('div');
             toggle.className = 'ugs-ml-toggle' + (installedIds.has(m.id) ? ' on' : '');
             toggle.title = installedIds.has(m.id) ? 'Disable module' : 'Enable module';
+            toggle.setAttribute('role', 'switch');
+            toggle.setAttribute('aria-checked', installedIds.has(m.id) ? 'true' : 'false');
 
             toggle.addEventListener('click', async () => {
                 if (toggle.classList.contains('loading')) return;
                 const isOn = installedIds.has(m.id);
 
                 if (isOn) {
-                    // ----- DISABLE -----
                     installedIds.delete(m.id);
                     saveInstalled();
 
-                    // Call module's remove() hook if registered
                     const mod = window.UGSModules && window.UGSModules[m.id];
                     if (mod && typeof mod.remove === 'function') {
                         try { mod.remove(); } catch (e) { console.warn('[UGS ML] remove hook failed:', e); }
@@ -601,12 +768,10 @@
                     if (s) { s.remove(); loadedScripts.delete(m.id); }
 
                     toggle.classList.remove('on');
+                    toggle.setAttribute('aria-checked', 'false');
                     toggle.title = 'Enable module';
-
-                    // Refresh list to update warn dots
                     renderList(search.value);
                 } else {
-                    // ----- ENABLE -----
                     const conflicts = findConflicts(m, installedIds, allModules);
                     if (conflicts.length > 0) {
                         const proceed = await showConflictWarning(m, conflicts);
@@ -621,9 +786,8 @@
                         installedIds.add(m.id);
                         saveInstalled();
                         toggle.classList.add('on');
+                        toggle.setAttribute('aria-checked', 'true');
                         toggle.title = 'Disable module';
-
-                        // Refresh list to update warn dots
                         renderList(search.value);
                     } catch (err) {
                         console.error('[UGS ML]', err);
@@ -654,7 +818,6 @@
             renderList(search.value);
             footer.textContent = `${allModules.length} module${allModules.length === 1 ? '' : 's'} available`;
 
-            // Auto-reload previously enabled modules
             for (const m of allModules) {
                 if (installedIds.has(m.id) && !loadedScripts.has(m.id)) {
                     try {
