@@ -1,12 +1,12 @@
 /* ============================================================
  * MODULE: Minimalist Override
  * ------------------------------------------------------------
- * Rewrites the site with a clean dark minimalist theme.
- * Toggleable via the module loader.
+ * Applies a clean dark minimalist theme to the whole site.
+ * Toggleable via the module loader — no cinematic wait,
+ * styles apply instantly on load.
  *
  * Category: style
  * Subcategory: full-page
- * Conflicts: everything in `style:*` (declared explicitly)
  * ============================================================ */
 
 (function () {
@@ -15,7 +15,7 @@
     const MODULE_ID = 'minimalist-override';
     const STYLE_TAG_ID = 'minimalist-override-style';
 
-    // Elements we must NEVER touch — the module loader UI.
+    // Never touch the module loader UI or anything inside it.
     const PROTECTED_SELECTORS = [
         '#ugs-ml-btn',
         '#ugs-ml-panel',
@@ -48,6 +48,13 @@
         '.ugs-ml-conflict-actions',
         '.ugs-ml-conflict-cancel',
         '.ugs-ml-conflict-confirm',
+        '.ugs-ml-tile',
+        '.ugs-ml-tiles',
+        '.ugs-ml-tile-label',
+        '.ugs-ml-tile-desc',
+        '.ugs-ml-tile-icon',
+        '.ugs-ml-back',
+        '.ugs-ml-view',
         '#ugs-module-loader-styles'
     ].join(', ');
 
@@ -57,39 +64,26 @@
 
     // ---------- APPLY ----------
     const apply = () => {
-        if (styleTag) return; // already applied
+        if (styleTag) return;
 
-        // 1. Save & remove existing stylesheets (except loader's)
+        // Save & remove existing stylesheets (skip loader's own + ours)
         document.querySelectorAll('style, link[rel="stylesheet"]').forEach(el => {
             if (el.id === 'ugs-module-loader-styles') return;
             if (el.id === STYLE_TAG_ID) return;
-            removedSheets.push({
-                el,
-                parent: el.parentNode,
-                next: el.nextSibling
-            });
+            removedSheets.push({ el, parent: el.parentNode, next: el.nextSibling });
             el.remove();
         });
 
-        // 2. Save & strip inline styles, skipping protected elements
+        // Save & strip inline styles, skipping protected elements
         document.querySelectorAll('[style]').forEach(el => {
             if (el.closest(PROTECTED_SELECTORS)) return;
-            strippedInlineStyles.push({
-                el,
-                value: el.getAttribute('style')
-            });
+            strippedInlineStyles.push({ el, value: el.getAttribute('style') });
             el.removeAttribute('style');
         });
 
-        // 3. Inject minimalist stylesheet
-        //    Every rule is scoped with `body` prefix + !important so it
-        //    overrides anything the page tries to do, but never touches
-        //    the module loader (whose rules use .ugs-ml-* class specificity).
         const css = `
             /* ============ Minimalist Override ============ */
-            html {
-                background: #0e0f12 !important;
-            }
+            html { background: #0e0f12 !important; }
 
             body {
                 font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif !important;
@@ -101,11 +95,10 @@
                 -moz-osx-font-smoothing: grayscale !important;
             }
 
-            /* ---------- SIDEBAR ---------- */
+            /* SIDEBAR */
             body .sidebar {
                 position: fixed !important;
-                left: 0 !important;
-                top: 0 !important;
+                left: 0 !important; top: 0 !important;
                 width: 72px !important;
                 height: 100vh !important;
                 background: #0a0b0d !important;
@@ -117,6 +110,7 @@
                 overflow-y: auto !important;
                 z-index: 1000 !important;
                 box-shadow: none !important;
+                backdrop-filter: none !important;
             }
             body .sidebar::-webkit-scrollbar { width: 3px !important; }
             body .sidebar::-webkit-scrollbar-track { background: #0a0b0d !important; }
@@ -154,7 +148,7 @@
                 border-color: #1b1d23 !important;
             }
 
-            /* ---------- MAIN CONTENT ---------- */
+            /* MAIN CONTENT */
             body .main-content {
                 margin-left: 72px !important;
                 flex: 1 !important;
@@ -215,9 +209,7 @@
                 color: #5f6672 !important;
                 font-weight: 300 !important;
             }
-            body input[type="text"]:focus {
-                border-color: #4b5261 !important;
-            }
+            body input[type="text"]:focus { border-color: #4b5261 !important; }
 
             body #lolbutton {
                 background: #16181d !important;
@@ -241,7 +233,7 @@
                 color: #e3e5e8 !important;
             }
 
-            /* ---------- SECTIONS ---------- */
+            /* SECTIONS */
             body .letter-section {
                 margin-bottom: 36px !important;
                 padding: 0 !important;
@@ -308,21 +300,10 @@
                 box-shadow: none !important;
             }
 
-            /* ---------- RESPONSIVE ---------- */
             @media (max-width: 768px) {
-                body .sidebar {
-                    width: 56px !important;
-                    padding: 12px 5px !important;
-                }
-                body .sidebar-btn {
-                    padding: 8px 0 !important;
-                    font-size: 12px !important;
-                    min-height: 36px !important;
-                }
-                body .main-content {
-                    margin-left: 56px !important;
-                    padding: 20px 16px 48px 16px !important;
-                }
+                body .sidebar { width: 56px !important; padding: 12px 5px !important; }
+                body .sidebar-btn { padding: 8px 0 !important; font-size: 12px !important; min-height: 36px !important; }
+                body .main-content { margin-left: 56px !important; padding: 20px 16px 48px 16px !important; }
                 body h1 { font-size: 22px !important; }
                 body input[type="button"] { max-width: 100% !important; }
             }
@@ -338,11 +319,10 @@
     const remove = () => {
         if (!styleTag) return;
 
-        // Remove our stylesheet
         styleTag.remove();
         styleTag = null;
 
-        // Restore original stylesheets
+        // Restore original stylesheets in their original positions
         removedSheets.forEach(({ el, parent, next }) => {
             try {
                 if (next && next.parentNode === parent) {
@@ -351,7 +331,7 @@
                     parent.appendChild(el);
                 }
             } catch (e) {
-                console.warn('[minimalist-override] failed to restore sheet', e);
+                console.warn('[minimalist-override] restore sheet failed', e);
             }
         });
         removedSheets.length = 0;
@@ -365,15 +345,11 @@
         strippedInlineStyles.length = 0;
     };
 
-    // ---------- REGISTER WITH LOADER ----------
+    // ---------- REGISTER ----------
     if (!window.UGSModules) window.UGSModules = {};
-    window.UGSModules[MODULE_ID] = {
-        id: MODULE_ID,
-        apply,
-        remove
-    };
+    window.UGSModules[MODULE_ID] = { id: MODULE_ID, apply, remove };
 
-    // Auto-apply on load (loader will call remove() on toggle-off)
+    // Apply immediately
     apply();
 
     // Expose for manual control
