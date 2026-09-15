@@ -530,4 +530,473 @@
             font-size: 10px !important;
             color: ${GH.accent} !important;
             background: rgba(88, 166, 255, 0.12) !important;
-            border: 1px solid rgba(88, 166, 255, 0.35) !important
+            border: 1px solid rgba(88, 166, 255, 0.35) !important;
+            padding: 1px 6px !important;
+            border-radius: 999px !important;
+            text-transform: uppercase !important;
+            font-family: ${GH.monoFont} !important;
+            line-height: 1.4 !important;
+        }
+
+        .ugs-ml-conflict-hint {
+            display: block !important;
+            font-size: 12px !important;
+            color: ${GH.fgSubtle} !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        .ugs-ml-conflict-actions {
+            display: flex !important;
+            justify-content: flex-end !important;
+            gap: 8px !important;
+            margin-top: 18px !important;
+        }
+        .ugs-ml-conflict-actions button {
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            padding: 6px 14px !important;
+            font-size: 12px !important;
+            font-family: ${GH.uiFont} !important;
+            font-weight: 500 !important;
+            border-radius: 6px !important;
+            cursor: pointer !important;
+            transition: background 120ms, border-color 120ms, color 120ms !important;
+            line-height: 20px !important;
+            outline: none !important;
+        }
+        .ugs-ml-conflict-cancel {
+            background: ${GH.canvasSubtle} !important;
+            color: ${GH.fgDefault} !important;
+            border: 1px solid ${GH.borderDefault} !important;
+        }
+        .ugs-ml-conflict-cancel:hover {
+            background: ${GH.borderMuted} !important;
+            border-color: ${GH.fgSubtle} !important;
+        }
+        .ugs-ml-conflict-confirm {
+            background: ${GH.accentEmphasis} !important;
+            color: #ffffff !important;
+            border: 1px solid rgba(240, 246, 252, 0.1) !important;
+        }
+        .ugs-ml-conflict-confirm:hover { background: #388bfd !important; }
+
+        /* ============ Responsive ============ */
+        @media (max-width: 480px) {
+            .ugs-ml-panel {
+                width: calc(100vw - 28px) !important;
+                max-width: 380px !important;
+            }
+            .ugs-ml-conflict-modal { padding: 16px !important; }
+        }
+    `;
+    document.head.appendChild(style);
+
+    // ---------- BUILD UI ----------
+    const wrap = document.createElement('div');
+    wrap.className = 'ugs-ml-wrap';
+    wrap.innerHTML = `
+        <button class="ugs-ml-btn" id="ugs-ml-btn" title="Modules" aria-label="Modules">
+            <i class="fa-brands fa-github" aria-hidden="true"></i>
+        </button>
+        <div class="ugs-ml-panel" id="ugs-ml-panel" role="dialog" aria-label="Module loader">
+            <div class="ugs-ml-header">
+                <button class="ugs-ml-back" id="ugs-ml-back" style="display:none;" aria-label="Back">
+                    <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
+                    <span>Back</span>
+                </button>
+                <span class="ugs-ml-title" id="ugs-ml-title">Modules</span>
+                <span class="ugs-ml-count" id="ugs-ml-count">—</span>
+            </div>
+
+            <!-- HOME VIEW: two app tiles -->
+            <div class="ugs-ml-view active" id="ugs-ml-view-home">
+                <div class="ugs-ml-tiles">
+                    <button class="ugs-ml-tile" id="ugs-ml-tile-search" aria-label="Search modules">
+                        <span class="ugs-ml-tile-icon"><i class="fa-solid fa-magnifying-glass"></i></span>
+                        <span class="ugs-ml-tile-label">Search</span>
+                        <span class="ugs-ml-tile-desc">Browse all available modules</span>
+                    </button>
+                    <button class="ugs-ml-tile" id="ugs-ml-tile-installed" aria-label="Installed modules">
+                        <span class="ugs-ml-tile-icon"><i class="fa-solid fa-box-open"></i></span>
+                        <span class="ugs-ml-tile-label">Installed</span>
+                        <span class="ugs-ml-tile-desc">Your toggled-on modules</span>
+                    </button>
+                </div>
+                <div class="ugs-ml-footer" id="ugs-ml-footer-home">—</div>
+            </div>
+
+            <!-- SEARCH VIEW -->
+            <div class="ugs-ml-view" id="ugs-ml-view-search">
+                <div class="ugs-ml-search-wrap">
+                    <input class="ugs-ml-search" id="ugs-ml-search" placeholder="Search modules…" autocomplete="off" spellcheck="false">
+                </div>
+                <div class="ugs-ml-list" id="ugs-ml-list-search">
+                    <div class="ugs-ml-empty">Loading modules…</div>
+                </div>
+                <div class="ugs-ml-footer" id="ugs-ml-footer">—</div>
+            </div>
+
+            <!-- INSTALLED VIEW -->
+            <div class="ugs-ml-view" id="ugs-ml-view-installed">
+                <div class="ugs-ml-list" id="ugs-ml-list-installed">
+                    <div class="ugs-ml-empty">Loading…</div>
+                </div>
+                <div class="ugs-ml-footer" id="ugs-ml-footer-installed">—</div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(wrap);
+
+    const btn = document.getElementById('ugs-ml-btn');
+    const panel = document.getElementById('ugs-ml-panel');
+    const backBtn = document.getElementById('ugs-ml-back');
+    const titleEl = document.getElementById('ugs-ml-title');
+    const countEl = document.getElementById('ugs-ml-count');
+
+    const viewHome = document.getElementById('ugs-ml-view-home');
+    const viewSearch = document.getElementById('ugs-ml-view-search');
+    const viewInstalled = document.getElementById('ugs-ml-view-installed');
+
+    const tileSearch = document.getElementById('ugs-ml-tile-search');
+    const tileInstalled = document.getElementById('ugs-ml-tile-installed');
+
+    const searchInput = document.getElementById('ugs-ml-search');
+    const listSearch = document.getElementById('ugs-ml-list-search');
+    const listInstalled = document.getElementById('ugs-ml-list-installed');
+
+    const footerHome = document.getElementById('ugs-ml-footer-home');
+    const footerSearch = document.getElementById('ugs-ml-footer');
+    const footerInstalled = document.getElementById('ugs-ml-footer-installed');
+
+    // ---------- STATE ----------
+    let allModules = [];
+    let installedIds = new Set(JSON.parse(localStorage.getItem(CONFIG.storageKey) || '[]'));
+    const loadedScripts = new Map();
+
+    // ---------- HELPERS ----------
+    const escapeHtml = (str) => String(str).replace(/[&<>"']/g, (c) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+
+    const saveInstalled = () => {
+        localStorage.setItem(CONFIG.storageKey, JSON.stringify([...installedIds]));
+    };
+
+    const resolveUrl = (path) => {
+        if (/^https?:\/\//i.test(path)) return path;
+        return CONFIG.baseUrl + path.replace(/^\/+/, '');
+    };
+
+    const loadScript = (url) => new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = url;
+        s.onload = () => resolve(s);
+        s.onerror = () => reject(new Error('Failed to load ' + url));
+        document.body.appendChild(s);
+    });
+
+    // ---------- CONFLICT DETECTION ----------
+    const findConflicts = (candidate) => {
+        const conflicts = [];
+        const explicit = new Set(candidate.conflictsWith || []);
+
+        allModules.forEach(other => {
+            if (other.id === candidate.id) return;
+            if (!installedIds.has(other.id)) return;
+
+            const otherKey = `${other.category}:${other.subcategory}`;
+            if (explicit.has(other.id) || explicit.has(otherKey)) {
+                conflicts.push({ module: other, reason: 'declared' });
+                return;
+            }
+
+            const otherExplicit = new Set(other.conflictsWith || []);
+            const candidateKey = `${candidate.category}:${candidate.subcategory}`;
+            if (otherExplicit.has(candidate.id) || otherExplicit.has(candidateKey)) {
+                conflicts.push({ module: other, reason: 'declared-by-other' });
+                return;
+            }
+
+            if (
+                candidate.category &&
+                other.category === candidate.category &&
+                other.subcategory === candidate.subcategory
+            ) {
+                conflicts.push({ module: other, reason: 'same-subcategory' });
+            }
+        });
+
+        return conflicts;
+    };
+
+    // ---------- CONFLICT MODAL ----------
+    const showConflictWarning = (candidate, conflicts) => {
+        return new Promise((resolve) => {
+            const overlay = document.createElement('div');
+            overlay.className = 'ugs-ml-conflict-overlay';
+            overlay.innerHTML = `
+                <div class="ugs-ml-conflict-modal" role="alertdialog">
+                    <div class="ugs-ml-conflict-title">Module conflict detected</div>
+                    <div class="ugs-ml-conflict-body">
+                        <p>
+                            <strong>${escapeHtml(candidate.name)}</strong> overlaps with
+                            ${conflicts.length} already-enabled module${conflicts.length === 1 ? '' : 's'}.
+                            Loading both may cause broken styling or unexpected behavior.
+                        </p>
+                        <ul class="ugs-ml-conflict-list">
+                            ${conflicts.map(c => {
+                                const label = c.reason === 'same-subcategory' ? 'same slot' : 'flagged';
+                                return `<li>
+                                    <span class="ugs-ml-conflict-name">${escapeHtml(c.module.name)}</span>
+                                    <span class="ugs-ml-conflict-tag">${label}</span>
+                                </li>`;
+                            }).join('')}
+                        </ul>
+                        <p class="ugs-ml-conflict-hint">
+                            Disable the conflicting module${conflicts.length === 1 ? '' : 's'} first,
+                            or continue and risk visual bugs.
+                        </p>
+                    </div>
+                    <div class="ugs-ml-conflict-actions">
+                        <button class="ugs-ml-conflict-cancel">Cancel</button>
+                        <button class="ugs-ml-conflict-confirm">Continue anyway</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+            requestAnimationFrame(() => overlay.classList.add('open'));
+
+            const close = (choice) => {
+                overlay.classList.remove('open');
+                setTimeout(() => overlay.remove(), 200);
+                resolve(choice === 'confirm');
+            };
+            overlay.querySelector('.ugs-ml-conflict-cancel').addEventListener('click', () => close('cancel'));
+            overlay.querySelector('.ugs-ml-conflict-confirm').addEventListener('click', () => close('confirm'));
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) close('cancel'); });
+        });
+    };
+
+    // ---------- VIEW SWITCHING ----------
+    const showView = (name) => {
+        [viewHome, viewSearch, viewInstalled].forEach(v => v.classList.remove('active'));
+        if (name === 'home') {
+            viewHome.classList.add('active');
+            backBtn.style.display = 'none';
+            titleEl.textContent = 'Modules';
+            countEl.textContent = '—';
+        } else if (name === 'search') {
+            viewSearch.classList.add('active');
+            backBtn.style.display = 'inline-flex';
+            titleEl.textContent = 'Search';
+            setTimeout(() => searchInput.focus(), 50);
+            renderSearch(searchInput.value);
+        } else if (name === 'installed') {
+            viewInstalled.classList.add('active');
+            backBtn.style.display = 'inline-flex';
+            titleEl.textContent = 'Installed';
+            renderInstalled();
+        }
+    };
+
+    tileSearch.addEventListener('click', () => showView('search'));
+    tileInstalled.addEventListener('click', () => showView('installed'));
+    backBtn.addEventListener('click', () => showView('home'));
+
+    // ---------- RENDER: SEARCH LIST ----------
+    const renderSearch = (filter = '') => {
+        const q = filter.trim().toLowerCase();
+        const filtered = allModules.filter(m => {
+            if (!q) return true;
+            return (
+                m.name.toLowerCase().includes(q) ||
+                (m.description || '').toLowerCase().includes(q) ||
+                (m.author || '').toLowerCase().includes(q) ||
+                (m.category || '').toLowerCase().includes(q) ||
+                (m.subcategory || '').toLowerCase().includes(q)
+            );
+        });
+
+        countEl.textContent = `${filtered.length} / ${allModules.length}`;
+
+        if (filtered.length === 0) {
+            listSearch.innerHTML = `<div class="ugs-ml-empty">${allModules.length === 0 ? 'No modules available.' : 'No matches.'}</div>`;
+            return;
+        }
+        listSearch.innerHTML = '';
+        filtered.forEach(m => listSearch.appendChild(buildItem(m)));
+    };
+
+    // ---------- RENDER: INSTALLED LIST ----------
+    const renderInstalled = () => {
+        const installed = allModules.filter(m => installedIds.has(m.id));
+        countEl.textContent = `${installed.length} enabled`;
+
+        if (installed.length === 0) {
+            listInstalled.innerHTML = `<div class="ugs-ml-empty">No modules enabled yet.<br>Open Search to add some.</div>`;
+            footerInstalled.textContent = '0 modules enabled';
+            return;
+        }
+        listInstalled.innerHTML = '';
+        installed.forEach(m => listInstalled.appendChild(buildItem(m)));
+        footerInstalled.textContent = `${installed.length} module${installed.length === 1 ? '' : 's'} enabled`;
+    };
+
+    // ---------- BUILD ITEM (shared by both lists) ----------
+    const buildItem = (m) => {
+        const item = document.createElement('div');
+        item.className = 'ugs-ml-item';
+
+        const info = document.createElement('div');
+        info.className = 'ugs-ml-info';
+        const categoryLine = m.category
+            ? `${escapeHtml(m.category)}${m.subcategory ? ' · ' + escapeHtml(m.subcategory) : ''} · `
+            : '';
+        info.innerHTML = `
+            <div class="ugs-ml-name">${escapeHtml(m.name)}</div>
+            <div class="ugs-ml-desc">${escapeHtml(m.description || '')}</div>
+            <div class="ugs-ml-meta">
+                ${categoryLine}v${escapeHtml(m.version || '0.0.0')} · ${escapeHtml(m.author || 'unknown')}
+            </div>
+        `;
+
+        // Warn dot for would-conflict modules (only in search view, only when not installed)
+        const conflicts = findConflicts(m);
+        if (conflicts.length > 0 && !installedIds.has(m.id)) {
+            const dot = document.createElement('span');
+            dot.className = 'ugs-ml-warn-dot';
+            dot.title = 'Conflicts with an enabled module';
+            info.querySelector('.ugs-ml-name').appendChild(dot);
+        }
+
+        const toggle = document.createElement('div');
+        toggle.className = 'ugs-ml-toggle' + (installedIds.has(m.id) ? ' on' : '');
+        toggle.title = installedIds.has(m.id) ? 'Disable module' : 'Enable module';
+        toggle.setAttribute('role', 'switch');
+        toggle.setAttribute('aria-checked', installedIds.has(m.id) ? 'true' : 'false');
+
+        toggle.addEventListener('click', async () => {
+            if (toggle.classList.contains('loading')) return;
+            const isOn = installedIds.has(m.id);
+
+            if (isOn) {
+                installedIds.delete(m.id);
+                saveInstalled();
+
+                const mod = window.UGSModules && window.UGSModules[m.id];
+                if (mod && typeof mod.remove === 'function') {
+                    try { mod.remove(); } catch (e) { console.warn('[UGS ML] remove hook failed:', e); }
+                }
+
+                const s = loadedScripts.get(m.id);
+                if (s) { s.remove(); loadedScripts.delete(m.id); }
+
+                toggle.classList.remove('on');
+                toggle.setAttribute('aria-checked', 'false');
+                toggle.title = 'Enable module';
+
+                // Refresh both views
+                if (viewSearch.classList.contains('active')) renderSearch(searchInput.value);
+                if (viewInstalled.classList.contains('active')) renderInstalled();
+            } else {
+                const conflicts = findConflicts(m);
+                if (conflicts.length > 0) {
+                    const proceed = await showConflictWarning(m, conflicts);
+                    if (!proceed) return;
+                }
+
+                toggle.classList.add('loading');
+                try {
+                    const url = resolveUrl(m.file);
+                    const s = await loadScript(url);
+                    loadedScripts.set(m.id, s);
+                    installedIds.add(m.id);
+                    saveInstalled();
+                    toggle.classList.add('on');
+                    toggle.setAttribute('aria-checked', 'true');
+                    toggle.title = 'Disable module';
+
+                    if (viewSearch.classList.contains('active')) renderSearch(searchInput.value);
+                    if (viewInstalled.classList.contains('active')) renderInstalled();
+                } catch (err) {
+                    console.error('[UGS ML]', err);
+                    toggle.title = 'Failed to load';
+                    alert(`Failed to load module "${m.name}".\n${err.message}`);
+                } finally {
+                    toggle.classList.remove('loading');
+                }
+            }
+        });
+
+        item.appendChild(info);
+        item.appendChild(toggle);
+        return item;
+    };
+
+    // ---------- SEARCH INPUT ----------
+    searchInput.addEventListener('input', () => renderSearch(searchInput.value));
+
+    // ---------- PANEL TOGGLE ----------
+    btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = panel.classList.toggle('open');
+        btn.classList.toggle('active', isOpen);
+        if (isOpen) {
+            // Always open to home view
+            showView('home');
+        }
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!wrap.contains(e.target)) {
+            panel.classList.remove('open');
+            btn.classList.remove('active');
+        }
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && panel.classList.contains('open')) {
+            panel.classList.remove('open');
+            btn.classList.remove('active');
+        }
+    });
+
+    // ---------- FETCH MANIFEST ----------
+    const fetchManifest = async () => {
+        try {
+            const res = await fetch(CONFIG.manifestUrl, { cache: 'no-cache' });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            allModules = Array.isArray(data.modules) ? data.modules : [];
+
+            // Home footer
+            const installedCount = allModules.filter(m => installedIds.has(m.id)).length;
+            footerHome.textContent = `${allModules.length} module${allModules.length === 1 ? '' : 's'} available · ${installedCount} enabled`;
+
+            // Pre-render search
+            renderSearch(searchInput.value);
+
+            // Auto-load previously enabled modules
+            for (const m of allModules) {
+                if (installedIds.has(m.id) && !loadedScripts.has(m.id)) {
+                    try {
+                        const url = resolveUrl(m.file);
+                        const s = await loadScript(url);
+                        loadedScripts.set(m.id, s);
+                    } catch (err) {
+                        console.warn('[UGS ML] auto-load failed for', m.id, err);
+                    }
+                }
+            }
+        } catch (err) {
+            console.error('[UGS ML] manifest fetch failed:', err);
+            listSearch.innerHTML = `<div class="ugs-ml-empty">Failed to load modules.<br><small>${escapeHtml(err.message)}</small></div>`;
+            footerHome.textContent = 'manifest unreachable';
+            footerSearch.textContent = 'manifest unreachable';
+        }
+    };
+
+    fetchManifest();
+})();
