@@ -1,15 +1,21 @@
-// ============================================
-// MODULE: Minimalist Override
-// Completely restyles the site into a clean
-// dark minimalist theme. Safe to toggle on/off
-// and does NOT affect the UGS module loader UI.
-// ============================================
+/* ============================================================
+ * MODULE: Minimalist Override
+ * ------------------------------------------------------------
+ * Rewrites the site with a clean dark minimalist theme.
+ * Toggleable via the module loader.
+ *
+ * Category: style
+ * Subcategory: full-page
+ * Conflicts: everything in `style:*` (declared explicitly)
+ * ============================================================ */
 
-(function() {
+(function () {
+    'use strict';
+
     const MODULE_ID = 'minimalist-override';
     const STYLE_TAG_ID = 'minimalist-override-style';
 
-    // Protection selectors: elements matching these are NEVER touched
+    // Elements we must NEVER touch — the module loader UI.
     const PROTECTED_SELECTORS = [
         '#ugs-ml-btn',
         '#ugs-ml-panel',
@@ -30,26 +36,33 @@
         '.ugs-ml-footer',
         '.ugs-ml-count',
         '.ugs-ml-title',
+        '.ugs-ml-warn-dot',
+        '.ugs-ml-conflict-overlay',
+        '.ugs-ml-conflict-modal',
+        '.ugs-ml-conflict-title',
+        '.ugs-ml-conflict-body',
+        '.ugs-ml-conflict-list',
+        '.ugs-ml-conflict-name',
+        '.ugs-ml-conflict-tag',
+        '.ugs-ml-conflict-hint',
+        '.ugs-ml-conflict-actions',
+        '.ugs-ml-conflict-cancel',
+        '.ugs-ml-conflict-confirm',
         '#ugs-module-loader-styles'
     ].join(', ');
 
-    // Track our injected style tag so we can remove it on destroy
     let styleTag = null;
-
-    // Track inline styles we stripped so we can restore them on destroy
     const strippedInlineStyles = [];
+    const removedSheets = [];
 
     // ---------- APPLY ----------
     const apply = () => {
         if (styleTag) return; // already applied
 
-        // 1. Save & strip existing <link rel="stylesheet"> and <style> tags
-        //    EXCEPT our own module loader styles.
-        const removedSheets = [];
+        // 1. Save & remove existing stylesheets (except loader's)
         document.querySelectorAll('style, link[rel="stylesheet"]').forEach(el => {
             if (el.id === 'ugs-module-loader-styles') return;
             if (el.id === STYLE_TAG_ID) return;
-            // Remember position for restore
             removedSheets.push({
                 el,
                 parent: el.parentNode,
@@ -58,7 +71,7 @@
             el.remove();
         });
 
-        // 2. Save & strip inline styles, skipping protected elements and their descendants
+        // 2. Save & strip inline styles, skipping protected elements
         document.querySelectorAll('[style]').forEach(el => {
             if (el.closest(PROTECTED_SELECTORS)) return;
             strippedInlineStyles.push({
@@ -68,11 +81,14 @@
             el.removeAttribute('style');
         });
 
-        // 3. Inject the minimalist stylesheet — scoped so it can't hit loader UI
+        // 3. Inject minimalist stylesheet
+        //    Every rule is scoped with `body` prefix + !important so it
+        //    overrides anything the page tries to do, but never touches
+        //    the module loader (whose rules use .ugs-ml-* class specificity).
         const css = `
-            /* === Minimalist Override === */
-            body *:not(.ugs-ml-wrap):not(.ugs-ml-wrap *) {
-                /* Reset everything first, then re-apply below */
+            /* ============ Minimalist Override ============ */
+            html {
+                background: #0e0f12 !important;
             }
 
             body {
@@ -85,8 +101,8 @@
                 -moz-osx-font-smoothing: grayscale !important;
             }
 
-            /* SIDEBAR */
-            .sidebar {
+            /* ---------- SIDEBAR ---------- */
+            body .sidebar {
                 position: fixed !important;
                 left: 0 !important;
                 top: 0 !important;
@@ -100,12 +116,13 @@
                 gap: 6px !important;
                 overflow-y: auto !important;
                 z-index: 1000 !important;
+                box-shadow: none !important;
             }
-            .sidebar::-webkit-scrollbar { width: 3px !important; }
-            .sidebar::-webkit-scrollbar-track { background: #0a0b0d !important; }
-            .sidebar::-webkit-scrollbar-thumb { background: #2a2d34 !important; }
+            body .sidebar::-webkit-scrollbar { width: 3px !important; }
+            body .sidebar::-webkit-scrollbar-track { background: #0a0b0d !important; }
+            body .sidebar::-webkit-scrollbar-thumb { background: #2a2d34 !important; border-radius: 0 !important; }
 
-            .sidebar-btn {
+            body .sidebar-btn {
                 background: #16181d !important;
                 border: 1px solid #23262e !important;
                 padding: 10px 0 !important;
@@ -119,13 +136,26 @@
                 letter-spacing: 0.3px !important;
                 font-family: inherit !important;
                 transition: background 0.15s, border-color 0.15s !important;
+                box-shadow: none !important;
             }
-            .sidebar-btn:hover { background: #1f2229 !important; border-color: #3a3f4b !important; }
-            .sidebar-btn.empty { opacity: 0.3 !important; cursor: default !important; background: #121317 !important; border-color: #1b1d23 !important; }
-            .sidebar-btn.empty:hover { background: #121317 !important; border-color: #1b1d23 !important; }
+            body .sidebar-btn:hover {
+                background: #1f2229 !important;
+                border-color: #3a3f4b !important;
+                transform: none !important;
+            }
+            body .sidebar-btn.empty {
+                opacity: 0.3 !important;
+                cursor: default !important;
+                background: #121317 !important;
+                border-color: #1b1d23 !important;
+            }
+            body .sidebar-btn.empty:hover {
+                background: #121317 !important;
+                border-color: #1b1d23 !important;
+            }
 
-            /* MAIN CONTENT */
-            .main-content {
+            /* ---------- MAIN CONTENT ---------- */
+            body .main-content {
                 margin-left: 72px !important;
                 flex: 1 !important;
                 padding: 32px 28px 64px 28px !important;
@@ -140,6 +170,7 @@
                 letter-spacing: -0.3px !important;
                 margin-bottom: 24px !important;
                 text-align: left !important;
+                text-shadow: none !important;
                 border-bottom: 1px solid #252830 !important;
                 padding-bottom: 12px !important;
             }
@@ -151,15 +182,20 @@
                 text-align: left !important;
                 margin-bottom: 18px !important;
                 line-height: 1.6 !important;
+                text-shadow: none !important;
             }
             body h2 a {
                 color: #c0c6d0 !important;
                 text-decoration: none !important;
                 font-size: 15px !important;
+                text-shadow: none !important;
                 border-bottom: 1px solid #353a45 !important;
                 transition: border-color 0.15s, color 0.15s !important;
             }
-            body h2 a:hover { color: #ffffff !important; border-bottom-color: #8a92a0 !important; }
+            body h2 a:hover {
+                color: #ffffff !important;
+                border-bottom-color: #8a92a0 !important;
+            }
 
             body input[type="text"] {
                 background: #121317 !important;
@@ -172,10 +208,16 @@
                 font-size: 14px !important;
                 font-family: inherit !important;
                 outline: none !important;
+                box-shadow: none !important;
                 transition: border-color 0.15s !important;
             }
-            body input[type="text"]::placeholder { color: #5f6672 !important; font-weight: 300 !important; }
-            body input[type="text"]:focus { border-color: #4b5261 !important; }
+            body input[type="text"]::placeholder {
+                color: #5f6672 !important;
+                font-weight: 300 !important;
+            }
+            body input[type="text"]:focus {
+                border-color: #4b5261 !important;
+            }
 
             body #lolbutton {
                 background: #16181d !important;
@@ -190,12 +232,17 @@
                 margin-left: 10px !important;
                 max-width: 200px !important;
                 white-space: nowrap !important;
+                box-shadow: none !important;
                 transition: background 0.15s, border-color 0.15s, color 0.15s !important;
             }
-            body #lolbutton:hover { background: #1f2229 !important; border-color: #3d424d !important; color: #e3e5e8 !important; }
+            body #lolbutton:hover {
+                background: #1f2229 !important;
+                border-color: #3d424d !important;
+                color: #e3e5e8 !important;
+            }
 
-            /* SECTIONS */
-            .letter-section {
+            /* ---------- SECTIONS ---------- */
+            body .letter-section {
                 margin-bottom: 36px !important;
                 padding: 0 !important;
                 max-width: 100% !important;
@@ -203,26 +250,27 @@
                 margin-right: 0 !important;
                 min-height: 40px !important;
             }
-            .letter-section.empty { opacity: 0.4 !important; }
+            body .letter-section.empty { opacity: 0.4 !important; }
 
-            .letter-header {
+            body .letter-header {
                 color: #ffffff !important;
                 font-size: 18px !important;
                 font-weight: 500 !important;
                 letter-spacing: 0.2px !important;
                 margin-bottom: 14px !important;
                 padding-bottom: 8px !important;
+                text-shadow: none !important;
                 border-bottom: 1px solid #252830 !important;
             }
 
-            .buttons-container {
+            body .buttons-container {
                 display: flex !important;
                 flex-direction: column !important;
                 gap: 8px !important;
                 align-items: flex-start !important;
             }
 
-            .empty-message {
+            body .empty-message {
                 color: #5f6672 !important;
                 font-style: normal !important;
                 text-align: left !important;
@@ -244,15 +292,37 @@
                 text-align: left !important;
                 font-family: inherit !important;
                 letter-spacing: 0.1px !important;
+                box-shadow: none !important;
                 transition: background 0.15s, border-color 0.15s !important;
             }
-            body input[type="button"]:hover { background: #1a1d23 !important; border-color: #3a3f4b !important; color: #ffffff !important; }
-            body input[type="button"]:active { background: #0f1114 !important; }
+            body input[type="button"]:hover {
+                background: #1a1d23 !important;
+                border-color: #3a3f4b !important;
+                color: #ffffff !important;
+                transform: none !important;
+                box-shadow: none !important;
+            }
+            body input[type="button"]:active {
+                background: #0f1114 !important;
+                transform: none !important;
+                box-shadow: none !important;
+            }
 
+            /* ---------- RESPONSIVE ---------- */
             @media (max-width: 768px) {
-                .sidebar { width: 56px !important; padding: 12px 5px !important; }
-                .sidebar-btn { padding: 8px 0 !important; font-size: 12px !important; min-height: 36px !important; }
-                .main-content { margin-left: 56px !important; padding: 20px 16px 48px 16px !important; }
+                body .sidebar {
+                    width: 56px !important;
+                    padding: 12px 5px !important;
+                }
+                body .sidebar-btn {
+                    padding: 8px 0 !important;
+                    font-size: 12px !important;
+                    min-height: 36px !important;
+                }
+                body .main-content {
+                    margin-left: 56px !important;
+                    padding: 20px 16px 48px 16px !important;
+                }
                 body h1 { font-size: 22px !important; }
                 body input[type="button"] { max-width: 100% !important; }
             }
@@ -272,33 +342,40 @@
         styleTag.remove();
         styleTag = null;
 
-        // Restore inline styles that we stripped
+        // Restore original stylesheets
+        removedSheets.forEach(({ el, parent, next }) => {
+            try {
+                if (next && next.parentNode === parent) {
+                    parent.insertBefore(el, next);
+                } else {
+                    parent.appendChild(el);
+                }
+            } catch (e) {
+                console.warn('[minimalist-override] failed to restore sheet', e);
+            }
+        });
+        removedSheets.length = 0;
+
+        // Restore inline styles
         strippedInlineStyles.forEach(({ el, value }) => {
             if (el && el.parentNode && value !== null) {
                 el.setAttribute('style', value);
             }
         });
         strippedInlineStyles.length = 0;
-
-        // Note: we can't perfectly restore the original <link>/<style> tags
-        // because we didn't save their references. If you need a true
-        // uninstall, the simplest option is to reload the page.
     };
 
     // ---------- REGISTER WITH LOADER ----------
-    // If the UGS module loader is present, register our lifecycle hooks
-    // so toggling the switch calls apply() / remove().
     if (!window.UGSModules) window.UGSModules = {};
     window.UGSModules[MODULE_ID] = {
+        id: MODULE_ID,
         apply,
-        remove,
-        id: MODULE_ID
+        remove
     };
 
-    // Auto-apply immediately when script is loaded (the loader will call
-    // remove() when toggled off).
+    // Auto-apply on load (loader will call remove() on toggle-off)
     apply();
 
-    // Provide a global for manual control
+    // Expose for manual control
     window.UGSMinimalistOverride = { apply, remove };
 })();
