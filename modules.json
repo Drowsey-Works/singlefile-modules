@@ -6,15 +6,30 @@
       "description": "Rewrites the entire site with a clean dark theme.",
       "author": "you",
       "version": "1.0.0",
-      "file": "modules/minimalist-override.js"
+      "file": "modules/minimalist-override.js",
+      "category": "style",
+      "subcategory": "full-page",
+      "conflictsWith": ["style:full-page"]
     },
     {
-      "id": "another-mod",
-      "name": "Another Module",
-      "description": "Does something cool.",
+      "id": "sidebar-minimalist",
+      "name": "Minimalist Sidebar",
+      "description": "Restyles just the sidebar.",
       "author": "you",
       "version": "1.0.0",
-      "file": "modules/another-mod.js"
+      "file": "modules/sidebar-minimalist.js",
+      "category": "style",
+      "subcategory": "sidebar"
+    },
+    {
+      "id": "search-bar-tweak",
+      "name": "Search Bar Tweak",
+      "description": "Adjusts the search input.",
+      "author": "you",
+      "version": "1.0.0",
+      "file": "modules/search-bar-tweak.js",
+      "category": "style",
+      "subcategory": "search"
     }
   ]
 }
